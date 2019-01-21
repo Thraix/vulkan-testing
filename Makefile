@@ -5,7 +5,7 @@ CC=@g++
 CO=@g++ -o
 BIN=bin/
 OBJPATH=$(BIN)intermediates
-INCLUDES=-I./src/ 
+INCLUDES=-I./src/ -I./../../Libs/Vulkan/include/ 
 OBJECTS=$(OBJPATH)/main.o $(OBJPATH)/Mat3.o $(OBJPATH)/Mat4.o $(OBJPATH)/Quaternion.o $(OBJPATH)/Vec2.o $(OBJPATH)/Vec3.o $(OBJPATH)/Vec4.o 
 CFLAGS=$(INCLUDES) -std=c++17 -c -w -g3 -D_DEBUG 
 LIBDIR=
@@ -23,7 +23,7 @@ $(OUTPUT): $(OBJECTS)
 install: all
 	$(info Installing Vulkan++ to /usr/bin/)
 	@cp $(OUTPUT) /usr/bin/vulkan.x86_64
-$(OBJPATH)/main.o : src/main.cpp src/Application.h src/math/Mat4.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h    
+$(OBJPATH)/main.o : src/main.cpp src/Application.h src/VulkanHandle.h src/math/Mat4.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h    
 	$(info -[14%]- $<)
 	$(CC) $(CFLAGS) -o $@ $<
 $(OBJPATH)/Mat3.o : src/math/Mat3.cpp src/math/Mat3.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h   src/math/MathFunc.h  
