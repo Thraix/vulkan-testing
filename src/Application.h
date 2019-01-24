@@ -806,12 +806,10 @@ class Application
 
     void CreateTextureImage()
     {
-      uint32_t width, height, bpp;
-      BYTE* bytes = ImageUtils::loadImage("res/textures/test.png", &width, &height, &bpp);
-      if(bpp != 32)
-        throw std::runtime_error("Texture image is not 32 bpp");
+      uint32_t width, height;
+      BYTE* bytes = ImageUtils::loadImage("res/textures/test.png", &width, &height);
 
-      VkDeviceSize imageSize = width * height * bpp / 8;
+      VkDeviceSize imageSize = width * height * 4;
 
       VkBuffer stagingBuffer;
       VkDeviceMemory stagingBufferMemory;
