@@ -1,9 +1,22 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <iostream>
 
 namespace VulkanHandle
 {
+  void VkSubmitDebugUtilsMessageEXT(
+      VkInstance instance,
+      VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+      VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData)
+  {
+    auto func = (PFN_vkSubmitDebugUtilsMessageEXT) 
+      vkGetInstanceProcAddr(instance, "vkSubmitDebugUtilsMessageEXT");
+
+    if(func)
+      func(instance, messageSeverity, messageTypes, pCallbackData);
+  }
 
   VkResult CreateDebugUtilsMessengerEXT(
       VkInstance instance, 

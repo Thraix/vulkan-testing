@@ -5,7 +5,7 @@ CC=@g++
 CO=@g++ -o
 BIN=bin/
 OBJPATH=$(BIN)intermediates
-INCLUDES=-I./src/ -I./../../Libs/Vulkan/include/ 
+INCLUDES=-I./src/ 
 OBJECTS=$(OBJPATH)/main.o $(OBJPATH)/Mat3.o $(OBJPATH)/Mat4.o $(OBJPATH)/Quaternion.o $(OBJPATH)/Vec2.o $(OBJPATH)/Vec3.o $(OBJPATH)/Vec4.o 
 CFLAGS=$(INCLUDES) -std=c++17 -c -w -g3 -D_DEBUG 
 LIBDIR=
