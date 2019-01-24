@@ -23,7 +23,7 @@ $(OUTPUT): $(OBJECTS)
 install: all
 	$(info Installing Vulkan++ to /usr/bin/)
 	@cp $(OUTPUT) /usr/bin/vulkan.x86_64
-$(OBJPATH)/main.o : src/main.cpp src/Application.h src/VulkanHandle.h src/math/Maths.h src/math/Mat3.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h   src/math/Mat4.h    src/math/MathFunc.h   src/math/Quaternion.h      
+$(OBJPATH)/main.o : src/main.cpp src/Application.h src/ImageUtils.h src/VulkanHandle.h src/math/Maths.h src/math/Mat3.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h   src/math/Mat4.h    src/math/MathFunc.h   src/math/Quaternion.h      
 	$(info -[14%]- $<)
 	$(CC) $(CFLAGS) -o $@ $<
 $(OBJPATH)/Mat3.o : src/math/Mat3.cpp src/math/Mat3.h src/math/Vec2.h src/math/Vec3.h src/math/Vec4.h   src/math/MathFunc.h  

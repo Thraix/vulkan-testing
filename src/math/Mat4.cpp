@@ -104,6 +104,28 @@ namespace Greet {
       Mat4::Translate(-position.x, -position.y, -position.z);
   }
 
+  Mat4 Mat4::LookAt(const Vec3& from, const Vec3& to, const Vec3& upVector)
+  {
+    Vec3 forward = Vec3{to - from}.Normalize();
+    Vec3 side = forward.Cross(upVector).Normalize();
+    Vec3 up = side.Cross(forward);
+
+    Mat4 result(1);
+    result.elements[_0_0] = side.x;
+    result.elements[_1_0] = side.y;
+    result.elements[_2_0] = side.z;
+    result.elements[_0_1] = up.x;
+    result.elements[_1_1] = up.y;
+    result.elements[_2_1] = up.z;
+    result.elements[_0_2] =-forward.x;
+    result.elements[_1_2] =-forward.y;
+    result.elements[_2_2] =-forward.z;
+    result.elements[_3_0] =-side.Dot(from);
+    result.elements[_3_1] =-up.Dot(from);
+    result.elements[_3_2] = forward.Dot(from);
+    return result;
+  }
+
 
   Mat4 Mat4::Translate(const Vec3& translation)
   {

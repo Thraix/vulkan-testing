@@ -40,6 +40,7 @@ namespace Greet {
        rotation	- angle around the object
        */
     static Mat4 TPCamera(Vec3 position, float distance, float height, float rotation);
+    static Mat4 LookAt(const Vec3& from, const Vec3& to, const Vec3& upVector);
 
     static Mat4 Translate(const Vec3& translation);
     static Mat4 Scale(const Vec3& scaling);
