@@ -815,10 +815,8 @@ class Application
       VkDeviceMemory stagingBufferMemory;
       CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
-      void* data;
-      vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-      memcpy(data, bytes, imageSize);
-      vkUnmapMemory(device, stagingBufferMemory);
+      UpdateBuffer(stagingBufferMemory, bytes, imageSize);
+
       delete[] bytes;
       CreateImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
@@ -903,10 +901,7 @@ class Application
 
       CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
 
-      void* data;
-      vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-      memcpy(data, vertices.data(), bufferSize);
-      vkUnmapMemory(device, stagingBufferMemory);
+      UpdateBuffer(stagingBufferMemory, vertices.data(), bufferSize);
 
       CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,vertexBufferMemory);
 
@@ -924,10 +919,7 @@ class Application
 
       CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
 
-      void* data;
-      vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-      memcpy(data, indices.data(), bufferSize);
-      vkUnmapMemory(device, stagingBufferMemory);
+      UpdateBuffer(stagingBufferMemory, indices.data(), bufferSize);
 
       CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,indexBufferMemory);
 
@@ -1416,6 +1408,14 @@ class Application
 
     }
 
+    void UpdateBuffer(VkDeviceMemory buffer, const void* data, uint32_t size)
+    {
+      void* dataTemp;
+      vkMapMemory(device, buffer, 0, size, 0, &dataTemp);
+      memcpy(dataTemp, data, size);
+      vkUnmapMemory(device, buffer);
+    }
+
     void MainLoop()
     {
       while(!glfwWindowShouldClose(window)) {
@@ -1499,11 +1499,7 @@ class Application
       ubo.view = Greet::Mat4::LookAt(Greet::Vec3(1,1,1), Greet::Vec3(0,0,0), Greet::Vec3(0,0,-1));
       ubo.proj = Greet::Mat4::ProjectionMatrix(swapChainExtent.width / (float) swapChainExtent.height, 90, 0.1f, 10.0f);
 
-      void* data;
-      vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-      memcpy(data, &ubo, sizeof(ubo));
-      vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
-
+      UpdateBuffer(uniformBuffersMemory[currentImage], &ubo, sizeof(ubo));
     }
 
     void Cleanup()

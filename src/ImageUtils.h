@@ -37,7 +37,6 @@ namespace ImageUtils
     bpp >>= 3;
     if (bpp != 3 && bpp != 4)
     {
-      delete[] bits;
       throw std::runtime_error("Bits per pixel is not valid (24 or 32): ");
     }
 
