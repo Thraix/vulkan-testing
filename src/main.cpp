@@ -8,13 +8,14 @@ int main()
 {
 
   Application app;
+    app.run();
   try
   {
-    app.run();
   }
   catch(const std::exception& e)
   {
     std::cerr << "ERROR: " << e.what() << std::endl;
+    abort();
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
