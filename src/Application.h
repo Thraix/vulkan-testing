@@ -1021,6 +1021,8 @@ class Application
     {
       CleanupSwapChain();
 
+      delete swapChains;
+
       vkDestroySampler(device, textureSampler, nullptr);
       vkDestroyImageView(device, textureImageView, nullptr);
       vkDestroyImage(device, textureImage, nullptr);
@@ -1046,7 +1048,6 @@ class Application
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(device, inFlightFences[i], nullptr);
       }
-      vkDestroyCommandPool(device, swapChains->GetCommandPool(), nullptr);
 
       if(enableValidationLayers)
         VulkanHandle::DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
@@ -1060,8 +1061,6 @@ class Application
 
     void CleanupSwapChain()
     {
-      vkFreeCommandBuffers(device, swapChains->GetCommandPool(), static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
-
       vkDestroyPipeline(device, graphicsPipeline, nullptr);
       vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     }

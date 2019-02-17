@@ -279,6 +279,7 @@ VkSwapchainKHR SwapChainHandler::GetSwapChain()
 
 void SwapChainHandler::CleanupSwapChain()
 {
+  vkDestroyCommandPool(device, commandPool, nullptr);
   vkDestroyImageView(device, depthImageView, nullptr);
   vkDestroyImage(device, depthImage, nullptr);
   vkFreeMemory(device, depthImageMemory, nullptr);
