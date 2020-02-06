@@ -1,10 +1,11 @@
 #pragma once
 
 #include "VulkanHandle.h"
+#include "Device.h"
 
 struct ImageView
 {
-    static void CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+    static void CreateImage(Device* device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
     {
       if(width == 0 || height == 0)
         throw std::runtime_error("Invalid size " + std::to_string(width) + " " + std::to_string(height));
@@ -19,28 +20,28 @@ struct ImageView
       imageInfo.format = format;
       imageInfo.tiling = tiling;
       imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      imageInfo.usage = usage; 
+      imageInfo.usage = usage;
       imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
       imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
       imageInfo.flags = 0;
 
-      if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+      if(vkCreateImage(device->GetDevice(), &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image");
 
       VkMemoryRequirements memRequirements;
-      vkGetImageMemoryRequirements(device, image, &memRequirements);
+      vkGetImageMemoryRequirements(device->GetDevice(), image, &memRequirements);
 
       VkMemoryAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       allocInfo.allocationSize = memRequirements.size;
-      allocInfo.memoryTypeIndex = VulkanHandle::FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
+      allocInfo.memoryTypeIndex = VulkanHandle::FindMemoryType(device, memRequirements.memoryTypeBits, properties);
 
-      if(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+      if(vkAllocateMemory(device->GetDevice(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
         throw std::runtime_error("Failed to allocate image memory");
-      vkBindImageMemory(device, image, imageMemory, 0);
+      vkBindImageMemory(device->GetDevice(), image, imageMemory, 0);
     }
 
-    static VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+    static VkImageView CreateImageView(Device* device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
     {
       VkImageViewCreateInfo createInfo = {};
       createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -52,13 +53,14 @@ struct ImageView
       createInfo.subresourceRange.levelCount = 1;
       createInfo.subresourceRange.baseArrayLayer = 0;
       createInfo.subresourceRange.layerCount = 1;
+
       VkImageView imageView;
-      if(vkCreateImageView(device, &createInfo, nullptr, &imageView) != VK_SUCCESS)
+      if(vkCreateImageView(device->GetDevice(), &createInfo, nullptr, &imageView) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image view");
       return imageView;
     }
 
-    static void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    static void TransitionImageLayout(Device* device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
     {
       VkCommandBuffer commandBuffer = VulkanHandle::BeginSingleTimeCommand(device, commandPool);
 

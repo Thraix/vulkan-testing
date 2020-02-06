@@ -1,7 +1,9 @@
 #include "SwapChainHandler.h"
 
-SwapChainHandler::SwapChainHandler(GLFWwindow* window, VkSurfaceKHR surface, VkDevice device, VkPhysicalDevice physicalDevice, VkQueue graphicsQueue)
-  : window{window}, surface{surface}, device{device}, physicalDevice{physicalDevice}, graphicsQueue{graphicsQueue}
+#include "Device.h"
+
+SwapChainHandler::SwapChainHandler(GLFWwindow* window, VkSurfaceKHR surface, Device* device)
+  : window{window}, surface{surface}, device{device}
 {
   CreateSwapChain();
   CreateImageViews();
@@ -18,7 +20,7 @@ SwapChainHandler::~SwapChainHandler()
 
 void SwapChainHandler::CreateSwapChain()
 {
-  SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(surface, physicalDevice);
+  SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(surface, device->GetPhysicalDevice());
 
   VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
   VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
@@ -40,7 +42,7 @@ void SwapChainHandler::CreateSwapChain()
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  QueueFamilyIndices indices = VulkanHandle::FindQueueFamilies(surface, physicalDevice);
+  QueueFamilyIndices indices = VulkanHandle::FindQueueFamilies(device, surface);
   uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),indices.presentFamily.value()};
 
   if(indices.graphicsFamily != indices.presentFamily)
@@ -61,12 +63,12 @@ void SwapChainHandler::CreateSwapChain()
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-  if(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+  if(vkCreateSwapchainKHR(device->GetDevice(), &createInfo, nullptr, &swapChain) != VK_SUCCESS)
     throw std::runtime_error("Failed to create swap chain");
 
-  vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+  vkGetSwapchainImagesKHR(device->GetDevice(), swapChain, &imageCount, nullptr);
   images.resize(imageCount);
-  vkGetSwapchainImagesKHR(device, swapChain, &imageCount, images.data());
+  vkGetSwapchainImagesKHR(device->GetDevice(), swapChain, &imageCount, images.data());
   imageFormat = surfaceFormat.format;
 }
 
@@ -133,19 +135,19 @@ void SwapChainHandler::CreateRenderPass()
   renderPassInfo.dependencyCount = 1;
   renderPassInfo.pDependencies = &dependency;
 
-  if(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+  if(vkCreateRenderPass(device->GetDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
     throw std::runtime_error("Failed to create render pass");
 
 }
 
 void SwapChainHandler::CreateCommandPool()
 {
-  QueueFamilyIndices queueFamilyIndices = VulkanHandle::FindQueueFamilies(surface, physicalDevice);
+  QueueFamilyIndices queueFamilyIndices = VulkanHandle::FindQueueFamilies(device, surface);
   VkCommandPoolCreateInfo poolInfo = {};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
   poolInfo.flags = 0;
-  if(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+  if(vkCreateCommandPool(device->GetDevice(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
     throw std::runtime_error("Failed to create command pool");
 }
 
@@ -153,10 +155,10 @@ void SwapChainHandler::CreateDepthResource()
 {
   VkFormat depthFormat = FindDepthFormat();
 
-  ImageView::CreateImage(device, physicalDevice, extent.width, extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+  ImageView::CreateImage(device, extent.width, extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
   depthImageView = ImageView::CreateImageView(device, depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-  ImageView::TransitionImageLayout(device, commandPool, graphicsQueue, depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+  ImageView::TransitionImageLayout(device, commandPool, device->GetGraphicsQueue(), depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void SwapChainHandler::CreateFrameBuffers()
@@ -178,7 +180,7 @@ void SwapChainHandler::CreateFrameBuffers()
     framebufferInfo.height = extent.height;
     framebufferInfo.layers = 1;
 
-    if(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
+    if(vkCreateFramebuffer(device->GetDevice(), &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
       throw std::runtime_error("Failed to create framebuffer");
   }
 }
@@ -279,18 +281,18 @@ VkSwapchainKHR SwapChainHandler::GetSwapChain()
 
 void SwapChainHandler::CleanupSwapChain()
 {
-  vkDestroyCommandPool(device, commandPool, nullptr);
-  vkDestroyImageView(device, depthImageView, nullptr);
-  vkDestroyImage(device, depthImage, nullptr);
-  vkFreeMemory(device, depthImageMemory, nullptr);
+  vkDestroyCommandPool(device->GetDevice(), commandPool, nullptr);
+  vkDestroyImageView(device->GetDevice(), depthImageView, nullptr);
+  vkDestroyImage(device->GetDevice(), depthImage, nullptr);
+  vkFreeMemory(device->GetDevice(), depthImageMemory, nullptr);
 
   for(auto&& framebuffer : framebuffers)
-    vkDestroyFramebuffer(device, framebuffer, nullptr);
+    vkDestroyFramebuffer(device->GetDevice(), framebuffer, nullptr);
   for(auto&& imageView : imageViews)
-    vkDestroyImageView(device,imageView, nullptr);
+    vkDestroyImageView(device->GetDevice(), imageView, nullptr);
 
-  vkDestroyRenderPass(device, renderPass, nullptr);
-  vkDestroySwapchainKHR(device,swapChain,nullptr);
+  vkDestroyRenderPass(device->GetDevice(), renderPass, nullptr);
+  vkDestroySwapchainKHR(device->GetDevice(), swapChain,nullptr);
 }
 
 SwapChainSupportDetails SwapChainHandler::QuerySwapChainSupport(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice)
@@ -299,7 +301,7 @@ SwapChainSupportDetails SwapChainHandler::QuerySwapChainSupport(VkSurfaceKHR sur
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &details.capabilities);
 
   uint32_t formatCount;;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr); 
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
   if(formatCount != 0)
   {
     details.formats.resize(formatCount);
@@ -307,7 +309,7 @@ SwapChainSupportDetails SwapChainHandler::QuerySwapChainSupport(VkSurfaceKHR sur
   }
 
   uint32_t presentModeCount;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr); 
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
   if(presentModeCount != 0)
   {
     details.presentModes.resize(presentModeCount);
@@ -327,7 +329,7 @@ VkFormat SwapChainHandler::FindSupportedFormat(const std::vector<VkFormat>& cand
   for(VkFormat format : candidates)
   {
     VkFormatProperties props;
-    vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+    vkGetPhysicalDeviceFormatProperties(device->GetPhysicalDevice(), format, &props);
     if(tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
       return format;
     else if(tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)

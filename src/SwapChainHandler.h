@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 
+class Device;
 
 struct SwapChainSupportDetails
 {
@@ -41,12 +42,11 @@ class SwapChainHandler
     std::vector<VkFramebuffer> framebuffers;
 
     GLFWwindow* window;
-    VkDevice device; 
-    VkPhysicalDevice physicalDevice;
+    Device* device;
     VkSurfaceKHR surface;
 
   public:
-    SwapChainHandler(GLFWwindow* window, VkSurfaceKHR surface, VkDevice device, VkPhysicalDevice physicalDevice, VkQueue graphicsQueue);
+    SwapChainHandler(GLFWwindow* window, VkSurfaceKHR surface, Device* device);
 
     ~SwapChainHandler();
 
