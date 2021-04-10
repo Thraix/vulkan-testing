@@ -3,3 +3,5 @@ bin/
 *.swp
 *.swo
 core
+Makefile
+.ycm_extra_conf.py

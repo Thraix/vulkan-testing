@@ -1,0 +1,23 @@
+<makegen>
+  <configuration name="Release">
+    <define>_DEBUG</define>
+    <generatehfile>false</generatehfile>
+    <hfilename>Vulkan++.h</hfilename>
+    <includedir>src/</includedir>
+    <library>vulkan</library>
+    <library>glfw</library>
+    <library>freeimage</library>
+    <library>freetype</library>
+    <library>dl</library>
+    <outputdir>bin/</outputdir>
+    <outputname>vulkan.x86_64</outputname>
+    <outputtype>executable</outputtype>
+    <projectname>Vulkan++</projectname>
+    <cflag>-g</cflag>
+    <cflag>-Wall</cflag>
+    <cflag>-Werror</cflag>
+    <srcdir>src/</srcdir>
+  </configuration>
+  <target>Release</target>
+  <version>v1.3.0</version>
+</makegen>
