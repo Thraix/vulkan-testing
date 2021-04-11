@@ -37,4 +37,21 @@ class VulkanUtils
     static uint32_t FindMemoryType(
         uint32_t typeFilter,
         VkMemoryPropertyFlags properties);
+
+    static void CreateBuffer(
+        VkDeviceSize size,
+        VkBufferUsageFlags usage,
+        VkMemoryPropertyFlags properties,
+        VkBuffer& buffer,
+        VkDeviceMemory& bufferMemory);
+
+    static void UpdateBuffer(
+        VkDeviceMemory buffer,
+        const void* data,
+        uint32_t size);
+
+    static void CopyBuffer(
+        VkBuffer srcBuffer,
+        VkBuffer dstBuffer,
+        VkDeviceSize size);
 };

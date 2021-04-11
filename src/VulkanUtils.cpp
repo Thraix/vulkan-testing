@@ -167,3 +167,46 @@ uint32_t VulkanUtils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags 
 
 }
 
+    void VulkanUtils::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+    {
+      VkBufferCreateInfo bufferInfo = {};
+      bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+      bufferInfo.size = size;
+      bufferInfo.usage = usage;
+      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+      if(vkCreateBuffer(VulkanContext::GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create vertex buffer");
+
+      VkMemoryRequirements memRequirements;
+      vkGetBufferMemoryRequirements(VulkanContext::GetDevice(), buffer, &memRequirements);
+
+      VkMemoryAllocateInfo allocInfo = {};
+      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+      allocInfo.allocationSize = memRequirements.size;
+      allocInfo.memoryTypeIndex = VulkanUtils::FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+      if(vkAllocateMemory(VulkanContext::GetDevice(),&allocInfo,nullptr, &bufferMemory) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate vertex buffer memory");
+
+      vkBindBufferMemory(VulkanContext::GetDevice(), buffer, bufferMemory, 0);
+    }
+
+    void VulkanUtils::UpdateBuffer(VkDeviceMemory buffer, const void* data, uint32_t size)
+    {
+      void* dataTemp;
+      vkMapMemory(VulkanContext::GetDevice(), buffer, 0, size, 0, &dataTemp);
+      memcpy(dataTemp, data, size);
+      vkUnmapMemory(VulkanContext::GetDevice(), buffer);
+    }
+
+    void VulkanUtils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+    {
+      VkCommandBuffer commandBuffer = VulkanUtils::BeginSingleTimeCommand();
+      {
+        VkBufferCopy copyRegion = {};
+        copyRegion.size = size;
+        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+      }
+      VulkanUtils::EndSingleTimeCommand(commandBuffer);
+    }

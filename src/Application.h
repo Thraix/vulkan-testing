@@ -2,6 +2,7 @@
 
 #include "VulkanHandle.h"
 #include "VulkanContext.h"
+#include "Texture.h"
 #include <iostream>
 #include <vector>
 #include <set>
@@ -12,6 +13,7 @@
 #include <math/Maths.h>
 #include <chrono>
 #include <ImageUtils.h>
+#include <memory>
 
 const uint32_t DEFAULT_WIDTH = 1280;
 const uint32_t DEFAULT_HEIGHT = 720;
@@ -88,10 +90,7 @@ class Application
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
-    VkImage textureImage;
-    VkImageView textureImageView;
-    VkSampler textureSampler;
-    VkDeviceMemory textureImageMemory;
+    std::shared_ptr<Texture> texture;
 
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
@@ -130,9 +129,7 @@ class Application
       VulkanContext::Init();
       CreateDescriptorSetLayout();
       CreateGraphicsPipeline();
-      CreateTextureImage();
-      CreateTextureImageView();
-      CreateTextureSampler();
+      CreateTexture();
       CreateVertexBuffer();
       CreateIndexBuffer();
       CreateUniformBuffers();
@@ -330,59 +327,9 @@ class Application
       vkDestroyShaderModule(VulkanContext::GetDevice(), vertShaderModule, nullptr);
     }
 
-    void CreateTextureImage()
+    void CreateTexture()
     {
-      uint32_t width, height;
-      BYTE* bytes = ImageUtils::loadImage("res/textures/test.png", &width, &height);
-
-      VkDeviceSize imageSize = width * height * 4;
-
-      VkBuffer stagingBuffer;
-      VkDeviceMemory stagingBufferMemory;
-      CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-      UpdateBuffer(stagingBufferMemory, bytes, imageSize);
-
-      delete[] bytes;
-      VulkanUtils::CreateImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
-
-      VulkanUtils::TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-      CopyBufferToImage(stagingBuffer, textureImage, width, height);
-      VulkanUtils::TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      vkDestroyBuffer(VulkanContext::GetDevice(), stagingBuffer, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), stagingBufferMemory, nullptr);
-
-    }
-
-    void CreateTextureImageView()
-    {
-      textureImageView = VulkanUtils::CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
-
-    void CreateTextureSampler()
-    {
-      VkSamplerCreateInfo samplerInfo = {};
-      samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      samplerInfo.magFilter = VK_FILTER_NEAREST;
-      samplerInfo.minFilter = VK_FILTER_NEAREST;
-      samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      samplerInfo.anisotropyEnable = VK_TRUE;
-      samplerInfo.maxAnisotropy = 16;
-
-      samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-      samplerInfo.unnormalizedCoordinates = VK_FALSE;
-      samplerInfo.compareEnable = VK_FALSE;
-      samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-      samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      samplerInfo.mipLodBias = 0.0f;
-      samplerInfo.minLod = 0.0f;
-      samplerInfo.maxLod = 0.0f;
-
-      if(vkCreateSampler(VulkanContext::GetDevice(), &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create texture sampler");
-
+      texture = std::make_shared<Texture>("res/textures/test.png");
     }
 
     void CreateVertexBuffer()
@@ -391,13 +338,13 @@ class Application
       VkBuffer stagingBuffer;
       VkDeviceMemory stagingBufferMemory;
 
-      CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
+      VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
 
-      UpdateBuffer(stagingBufferMemory, vertices.data(), bufferSize);
+      VulkanUtils::UpdateBuffer(stagingBufferMemory, vertices.data(), bufferSize);
 
-      CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,vertexBufferMemory);
+      VulkanUtils::CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,vertexBufferMemory);
 
-      CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+      VulkanUtils::CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
       vkDestroyBuffer(VulkanContext::GetDevice(), stagingBuffer, nullptr);
       vkFreeMemory(VulkanContext::GetDevice(), stagingBufferMemory, nullptr);
@@ -409,13 +356,13 @@ class Application
       VkBuffer stagingBuffer;
       VkDeviceMemory stagingBufferMemory;
 
-      CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
+      VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
 
-      UpdateBuffer(stagingBufferMemory, indices.data(), bufferSize);
+      VulkanUtils::UpdateBuffer(stagingBufferMemory, indices.data(), bufferSize);
 
-      CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,indexBufferMemory);
+      VulkanUtils::CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,indexBufferMemory);
 
-      CopyBuffer(stagingBuffer, indexBuffer, bufferSize);
+      VulkanUtils::CopyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
       vkDestroyBuffer(VulkanContext::GetDevice(), stagingBuffer, nullptr);
       vkFreeMemory(VulkanContext::GetDevice(), stagingBufferMemory, nullptr);
@@ -431,7 +378,7 @@ class Application
       uniformBuffersMemory.resize(count);
       for(size_t i = 0; i < count; i++)
       {
-        CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
       }
     }
 
@@ -475,10 +422,6 @@ class Application
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject);
 
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = textureImageView;
-        imageInfo.sampler = textureSampler;
 
         std::array<VkWriteDescriptorSet, 2> descriptorWrite = {};
         descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -488,6 +431,8 @@ class Application
         descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrite[0].descriptorCount = 1;
         descriptorWrite[0].pBufferInfo = &bufferInfo;
+
+        VkDescriptorImageInfo imageInfo = texture->GetDescriptor();
 
         descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrite[1].dstSet = descriptorSets[i];
@@ -499,42 +444,6 @@ class Application
 
         vkUpdateDescriptorSets(VulkanContext::GetDevice(), descriptorWrite.size(), descriptorWrite.data(), 0, nullptr);
       }
-    }
-
-    void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-    {
-      VkBufferCreateInfo bufferInfo = {};
-      bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      bufferInfo.size = size;
-      bufferInfo.usage = usage;
-      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-      if(vkCreateBuffer(VulkanContext::GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create vertex buffer");
-
-      VkMemoryRequirements memRequirements;
-      vkGetBufferMemoryRequirements(VulkanContext::GetDevice(), buffer, &memRequirements);
-
-      VkMemoryAllocateInfo allocInfo = {};
-      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      allocInfo.allocationSize = memRequirements.size;
-      allocInfo.memoryTypeIndex = VulkanUtils::FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-      if(vkAllocateMemory(VulkanContext::GetDevice(),&allocInfo,nullptr, &bufferMemory) != VK_SUCCESS)
-        throw std::runtime_error("Failed to allocate vertex buffer memory");
-
-      vkBindBufferMemory(VulkanContext::GetDevice(), buffer, bufferMemory, 0);
-    }
-
-    void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-    {
-      VkCommandBuffer commandBuffer = VulkanUtils::BeginSingleTimeCommand();
-      {
-        VkBufferCopy copyRegion = {};
-        copyRegion.size = size;
-        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-      }
-      VulkanUtils::EndSingleTimeCommand(commandBuffer);
     }
 
     void CreateCommandBuffers()
@@ -628,35 +537,6 @@ class Application
       return shaderModule;
     }
 
-    void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-    {
-      VkCommandBuffer commandBuffer = VulkanUtils::BeginSingleTimeCommand();
-
-      VkBufferImageCopy region = {};
-      region.bufferOffset = 0;
-      region.bufferRowLength = 0;
-      region.bufferImageHeight = 0;
-      region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      region.imageSubresource.mipLevel = 0;
-      region.imageSubresource.baseArrayLayer = 0;
-      region.imageSubresource.layerCount = 1;
-
-      region.imageOffset = {0,0,0};
-      region.imageExtent = {width,height,1};
-
-      vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-      VulkanUtils::EndSingleTimeCommand(commandBuffer);
-    }
-
-    void UpdateBuffer(VkDeviceMemory buffer, const void* data, uint32_t size)
-    {
-      void* dataTemp;
-      vkMapMemory(VulkanContext::GetDevice(), buffer, 0, size, 0, &dataTemp);
-      memcpy(dataTemp, data, size);
-      vkUnmapMemory(VulkanContext::GetDevice(), buffer);
-    }
-
     void MainLoop()
     {
       while(!glfwWindowShouldClose(VulkanContext::GetWindow())) {
@@ -737,18 +617,15 @@ class Application
       ubo.view = Greet::Mat4::LookAt(Greet::Vec3(1,1,1), Greet::Vec3(0,0,0), Greet::Vec3(0,0,-1));
       ubo.proj = Greet::Mat4::ProjectionMatrix(VulkanContext::GetSwapChainWidth()  / (float) VulkanContext::GetSwapChainHeight(), 90, 0.1f, 10.0f);
 
-      UpdateBuffer(uniformBuffersMemory[currentImage], &ubo, sizeof(ubo));
+      VulkanUtils::UpdateBuffer(uniformBuffersMemory[currentImage], &ubo, sizeof(ubo));
     }
 
     void Cleanup()
     {
       CleanupGraphicsPipeline();
-      VulkanContext::CleanupSwapChain(); // TODO: Change to Cleanup
 
-      vkDestroySampler(VulkanContext::GetDevice(), textureSampler, nullptr);
-      vkDestroyImageView(VulkanContext::GetDevice(), textureImageView, nullptr);
-      vkDestroyImage(VulkanContext::GetDevice(), textureImage, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), textureImageMemory, nullptr);
+      texture.reset();
+
       vkDestroyDescriptorPool(VulkanContext::GetDevice(), descriptorPool, nullptr);
 
       vkDestroyDescriptorSetLayout(VulkanContext::GetDevice(), descriptorSetLayout, nullptr);
@@ -770,6 +647,7 @@ class Application
         vkDestroySemaphore(VulkanContext::GetDevice(), imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(VulkanContext::GetDevice(), inFlightFences[i], nullptr);
       }
+      VulkanContext::Cleanup();
     }
 
     void CleanupGraphicsPipeline()

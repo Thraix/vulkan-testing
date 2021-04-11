@@ -1,19 +1,21 @@
+#pragma once
+
 #include <fstream>
 #include <FreeImage.h>
 #include <cstring>
 
 namespace ImageUtils
 {
-  inline BYTE* loadImage(const char* filepath, uint32_t* width, uint32_t* height)
+  inline BYTE* LoadImage(const std::string& filepath, uint32_t* width, uint32_t* height)
   {
     FREE_IMAGE_FORMAT fif = FIF_UNKNOWN;
 
     FIBITMAP *dib = nullptr;
 
-    fif = FreeImage_GetFileType(filepath, 0);
+    fif = FreeImage_GetFileType(filepath.c_str(), 0);
 
     if (fif == FIF_UNKNOWN)
-      fif = FreeImage_GetFIFFromFilename(filepath);
+      fif = FreeImage_GetFIFFromFilename(filepath.c_str());
 
     if (fif == FIF_UNKNOWN)
     {
@@ -21,12 +23,11 @@ namespace ImageUtils
     }
 
     if (FreeImage_FIFSupportsReading(fif))
-      dib = FreeImage_Load(fif, filepath);
+      dib = FreeImage_Load(fif, filepath.c_str());
     if (!dib)
     {
       throw std::runtime_error("FreeImage file Cannot be read: ");
     }
-
 
     BYTE* bits = FreeImage_GetBits(dib);
 
@@ -56,7 +57,7 @@ namespace ImageUtils
         if(bpp == 4)
           result[resultI++] = bits[bitsI + FI_RGBA_ALPHA];
         else
-          result[resultI++] = 0xff; 
+          result[resultI++] = 0xff;
         bitsI += bpp;
       }
     }
