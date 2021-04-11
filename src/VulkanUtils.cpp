@@ -54,105 +54,105 @@ VkImageView VulkanUtils::CreateImageView(VkImage image, VkFormat format, VkImage
   return imageView;
 }
 
-    void VulkanUtils::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
-    {
-      VkCommandBuffer commandBuffer = BeginSingleTimeCommand();
+void VulkanUtils::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+{
+  VkCommandBuffer commandBuffer = BeginSingleTimeCommand();
 
-      VkImageMemoryBarrier barrier = {};
-      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      barrier.oldLayout = oldLayout;
-      barrier.newLayout = newLayout;
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.image = image;
-      barrier.subresourceRange.baseMipLevel = 0;
-      barrier.subresourceRange.levelCount = 1;
-      barrier.subresourceRange.baseArrayLayer = 0;
-      barrier.subresourceRange.layerCount = 1;
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = oldLayout;
+  barrier.newLayout = newLayout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
 
-      if(newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-      {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        if(HasStencilComponent(format))
-          barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-      }
-      else
-      {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      }
-      VkPipelineStageFlags srcStage;
-      VkPipelineStageFlags dstStage;
+  if(newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    if(HasStencilComponent(format))
+      barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+  }
+  else
+  {
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  }
+  VkPipelineStageFlags srcStage;
+  VkPipelineStageFlags dstStage;
 
-      if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-      {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+  {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-      }
-      else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-      {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  }
+  else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+  {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-      }
-      else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-      {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  }
+  else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-      }
-      else
-        throw std::runtime_error("Unsupported layout transition");
+    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  }
+  else
+    throw std::runtime_error("Unsupported layout transition");
 
-      vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr,1, &barrier);
+  vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr,1, &barrier);
 
-      EndSingleTimeCommand(commandBuffer);
-    }
+  EndSingleTimeCommand(commandBuffer);
+}
 
-    bool VulkanUtils::HasStencilComponent(VkFormat format)
-    {
-      return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-    }
+bool VulkanUtils::HasStencilComponent(VkFormat format)
+{
+  return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 
 
-    VkCommandBuffer VulkanUtils::BeginSingleTimeCommand()
-    {
-      VkCommandBufferAllocateInfo allocInfo = {};
-      allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-      allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-      allocInfo.commandPool = VulkanContext::GetCommandPool();
-      allocInfo.commandBufferCount = 1;
+VkCommandBuffer VulkanUtils::BeginSingleTimeCommand()
+{
+  VkCommandBufferAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = VulkanContext::GetCommandPool();
+  allocInfo.commandBufferCount = 1;
 
-      VkCommandBuffer commandBuffer;
-      vkAllocateCommandBuffers(VulkanContext::GetDevice(), &allocInfo, &commandBuffer);
+  VkCommandBuffer commandBuffer;
+  vkAllocateCommandBuffers(VulkanContext::GetDevice(), &allocInfo, &commandBuffer);
 
-      VkCommandBufferBeginInfo beginInfo = {};
-      beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-      beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  VkCommandBufferBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-      vkBeginCommandBuffer(commandBuffer, &beginInfo);
-      return commandBuffer;
-    }
+  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  return commandBuffer;
+}
 
-    void VulkanUtils::EndSingleTimeCommand(VkCommandBuffer commandBuffer)
-    {
-      vkEndCommandBuffer(commandBuffer);
+void VulkanUtils::EndSingleTimeCommand(VkCommandBuffer commandBuffer)
+{
+  vkEndCommandBuffer(commandBuffer);
 
-      VkSubmitInfo submitInfo = {};
-      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-      submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &commandBuffer;
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
 
-      vkQueueSubmit(VulkanContext::GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-      vkQueueWaitIdle(VulkanContext::GetGraphicsQueue());
-      vkFreeCommandBuffers(VulkanContext::GetDevice(), VulkanContext::GetCommandPool(), 1, &commandBuffer);
-    }
+  vkQueueSubmit(VulkanContext::GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueWaitIdle(VulkanContext::GetGraphicsQueue());
+  vkFreeCommandBuffers(VulkanContext::GetDevice(), VulkanContext::GetCommandPool(), 1, &commandBuffer);
+}
 
 uint32_t VulkanUtils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
@@ -167,46 +167,52 @@ uint32_t VulkanUtils::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags 
 
 }
 
-    void VulkanUtils::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-    {
-      VkBufferCreateInfo bufferInfo = {};
-      bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      bufferInfo.size = size;
-      bufferInfo.usage = usage;
-      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+void VulkanUtils::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
+  VkBufferCreateInfo bufferInfo = {};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-      if(vkCreateBuffer(VulkanContext::GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create vertex buffer");
+  if(vkCreateBuffer(VulkanContext::GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    throw std::runtime_error("Failed to create vertex buffer");
 
-      VkMemoryRequirements memRequirements;
-      vkGetBufferMemoryRequirements(VulkanContext::GetDevice(), buffer, &memRequirements);
+  VkMemoryRequirements memRequirements;
+  vkGetBufferMemoryRequirements(VulkanContext::GetDevice(), buffer, &memRequirements);
 
-      VkMemoryAllocateInfo allocInfo = {};
-      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      allocInfo.allocationSize = memRequirements.size;
-      allocInfo.memoryTypeIndex = VulkanUtils::FindMemoryType(memRequirements.memoryTypeBits, properties);
+  VkMemoryAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = VulkanUtils::FindMemoryType(memRequirements.memoryTypeBits, properties);
 
-      if(vkAllocateMemory(VulkanContext::GetDevice(),&allocInfo,nullptr, &bufferMemory) != VK_SUCCESS)
-        throw std::runtime_error("Failed to allocate vertex buffer memory");
+  if(vkAllocateMemory(VulkanContext::GetDevice(),&allocInfo,nullptr, &bufferMemory) != VK_SUCCESS)
+    throw std::runtime_error("Failed to allocate vertex buffer memory");
 
-      vkBindBufferMemory(VulkanContext::GetDevice(), buffer, bufferMemory, 0);
-    }
+  vkBindBufferMemory(VulkanContext::GetDevice(), buffer, bufferMemory, 0);
+}
 
-    void VulkanUtils::UpdateBuffer(VkDeviceMemory buffer, const void* data, uint32_t size)
-    {
-      void* dataTemp;
-      vkMapMemory(VulkanContext::GetDevice(), buffer, 0, size, 0, &dataTemp);
-      memcpy(dataTemp, data, size);
-      vkUnmapMemory(VulkanContext::GetDevice(), buffer);
-    }
+void VulkanUtils::DestroyBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
+  vkDestroyBuffer(VulkanContext::GetDevice(), buffer, nullptr);
+  vkFreeMemory(VulkanContext::GetDevice(), bufferMemory, nullptr);
+}
 
-    void VulkanUtils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-    {
-      VkCommandBuffer commandBuffer = VulkanUtils::BeginSingleTimeCommand();
-      {
-        VkBufferCopy copyRegion = {};
-        copyRegion.size = size;
-        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-      }
-      VulkanUtils::EndSingleTimeCommand(commandBuffer);
-    }
+void VulkanUtils::UpdateBuffer(VkDeviceMemory buffer, const void* data, uint32_t size)
+{
+  void* dataTemp;
+  vkMapMemory(VulkanContext::GetDevice(), buffer, 0, size, 0, &dataTemp);
+  memcpy(dataTemp, data, size);
+  vkUnmapMemory(VulkanContext::GetDevice(), buffer);
+}
+
+void VulkanUtils::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+  VkCommandBuffer commandBuffer = VulkanUtils::BeginSingleTimeCommand();
+  {
+    VkBufferCopy copyRegion = {};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+  }
+  VulkanUtils::EndSingleTimeCommand(commandBuffer);
+}

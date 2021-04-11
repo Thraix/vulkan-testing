@@ -3,6 +3,7 @@
 #include "VulkanHandle.h"
 #include "VulkanContext.h"
 #include "Texture.h"
+#include "Buffer.h"
 #include <iostream>
 #include <vector>
 #include <set>
@@ -91,14 +92,10 @@ class Application
     VkPipeline graphicsPipeline;
 
     std::shared_ptr<Texture> texture;
+    std::shared_ptr<Buffer> vertexBuffer;
+    std::shared_ptr<Buffer> indexBuffer;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<std::shared_ptr<Buffer>> uniformBuffers;
 
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
@@ -334,39 +331,12 @@ class Application
 
     void CreateVertexBuffer()
     {
-      VkDeviceSize bufferSize = vertices.size() * sizeof(Vertex);
-      VkBuffer stagingBuffer;
-      VkDeviceMemory stagingBufferMemory;
-
-      VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
-
-      VulkanUtils::UpdateBuffer(stagingBufferMemory, vertices.data(), bufferSize);
-
-      VulkanUtils::CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,vertexBufferMemory);
-
-      VulkanUtils::CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-      vkDestroyBuffer(VulkanContext::GetDevice(), stagingBuffer, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), stagingBufferMemory, nullptr);
+      vertexBuffer = std::make_shared<Buffer>((void*)vertices.data(), vertices.size() * sizeof(Vertex), BufferType::VERTEX, BufferUpdateType::STATIC);
     }
 
     void CreateIndexBuffer()
     {
-      VkDeviceSize bufferSize = indices.size() * sizeof(indices[0]);
-      VkBuffer stagingBuffer;
-      VkDeviceMemory stagingBufferMemory;
-
-      VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,stagingBufferMemory);
-
-      VulkanUtils::UpdateBuffer(stagingBufferMemory, indices.data(), bufferSize);
-
-      VulkanUtils::CreateBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,indexBufferMemory);
-
-      VulkanUtils::CopyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-      vkDestroyBuffer(VulkanContext::GetDevice(), stagingBuffer, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), stagingBufferMemory, nullptr);
-
+      indexBuffer = std::make_shared<Buffer>((void*)indices.data(), indices.size() * sizeof(indices[0]), BufferType::INDEX, BufferUpdateType::STATIC);
     }
 
     void CreateUniformBuffers()
@@ -375,10 +345,9 @@ class Application
 
       size_t count = VulkanContext::GetSwapChainSize();
       uniformBuffers.resize(count);
-      uniformBuffersMemory.resize(count);
       for(size_t i = 0; i < count; i++)
       {
-        VulkanUtils::CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        uniformBuffers[i] = std::make_shared<Buffer>(bufferSize, BufferType::UNIFORM, BufferUpdateType::DYNAMIC);
       }
     }
 
@@ -418,7 +387,7 @@ class Application
       for(size_t i = 0; i < count; i++)
       {
         VkDescriptorBufferInfo bufferInfo = {};
-        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.buffer = uniformBuffers[i]->GetBuffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -487,11 +456,11 @@ class Application
         {
           vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-          VkBuffer vertexBuffers[] = {vertexBuffer};
+          VkBuffer vertexBuffers[] = {vertexBuffer->GetBuffer()};
           VkDeviceSize offsets[] = {0};
 
           vkCmdBindVertexBuffers(commandBuffers[i], 0, 1,vertexBuffers, offsets);
-          vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0,VK_INDEX_TYPE_UINT16);
+          vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer->GetBuffer(), 0,VK_INDEX_TYPE_UINT16);
 
           vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
@@ -617,7 +586,7 @@ class Application
       ubo.view = Greet::Mat4::LookAt(Greet::Vec3(1,1,1), Greet::Vec3(0,0,0), Greet::Vec3(0,0,-1));
       ubo.proj = Greet::Mat4::ProjectionMatrix(VulkanContext::GetSwapChainWidth()  / (float) VulkanContext::GetSwapChainHeight(), 90, 0.1f, 10.0f);
 
-      VulkanUtils::UpdateBuffer(uniformBuffersMemory[currentImage], &ubo, sizeof(ubo));
+      uniformBuffers[currentImage]->UpdateBuffer(&ubo);
     }
 
     void Cleanup()
@@ -631,15 +600,11 @@ class Application
       vkDestroyDescriptorSetLayout(VulkanContext::GetDevice(), descriptorSetLayout, nullptr);
       for(size_t i = 0; i < VulkanContext::GetSwapChainSize(); i++)
       {
-        vkDestroyBuffer(VulkanContext::GetDevice(), uniformBuffers[i], nullptr);
-        vkFreeMemory(VulkanContext::GetDevice(), uniformBuffersMemory[i], nullptr);
+        uniformBuffers[i].reset();
       }
 
-      vkDestroyBuffer(VulkanContext::GetDevice(), indexBuffer, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), indexBufferMemory, nullptr);
-
-      vkDestroyBuffer(VulkanContext::GetDevice(), vertexBuffer, nullptr);
-      vkFreeMemory(VulkanContext::GetDevice(), vertexBufferMemory, nullptr);
+      vertexBuffer.reset();
+      indexBuffer.reset();
 
       for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
       {

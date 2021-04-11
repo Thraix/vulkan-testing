@@ -45,6 +45,10 @@ class VulkanUtils
         VkBuffer& buffer,
         VkDeviceMemory& bufferMemory);
 
+    static void DestroyBuffer(
+        VkBuffer& buffer,
+        VkDeviceMemory& bufferMemory);
+
     static void UpdateBuffer(
         VkDeviceMemory buffer,
         const void* data,
