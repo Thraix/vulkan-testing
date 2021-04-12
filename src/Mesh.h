@@ -1,128 +1,76 @@
+#pragma once
+
 #include <string.h>
 #include <fstream>
 #include <math/Maths.h>
+#include <memory>
 
-namespace Mesh
+#include "Buffer.h"
+
+#include <vector>
+
+struct MeshData
 {
-  struct MeshData
+  std::vector<Greet::Vec3> vertices;
+  std::vector<uint32_t> indices;
+
+  std::vector<Greet::Vec3> normals;
+  std::vector<Greet::Vec2> texCoords;
+
+  MeshData(const std::vector<Greet::Vec3>& vertices, const std::vector<uint32_t>& indices)
+    : vertices{vertices}, indices{indices}
   {
-    Greet::Vec3* vertices;
-    uint32_t* indices;
-    uint32_t vertexCount;
-    uint32_t indexCount;
-
-    MeshData(Greet::Vec3* vertices, uint32_t vertexCount, uint32_t* indices, uint32_t indexCount)
-      : vertices{vertices}, vertexCount{vertexCount}, indices{indices}, indexCount{indexCount}
-    {
-    
-    }
-  };
-
-  static MeshData ReadFromFile(const std::string& filename)
-  {
-    using namespace Greet;
-    // Small buffer for initial stuffs
-    char buffer[1024];
-    std::ifstream fin(filename);
-
-    // Determine size of the file and reset to beginning.
-    int fileSize = fin.tellg();
-    fin.seekg(0,std::ios::end);
-    fileSize = (uint32_t)fin.tellg() - fileSize;
-    fin.seekg(0,std::ios::beg);
-
-    // Check if the file is big enough to contain signature, vertex count, index count and attribute count
-    fileSize -= 4 * sizeof(char) + 2 * sizeof(uint32_t) + sizeof(size_t);
-    if(fileSize < 0)
-    {
-      throw std::runtime_error("Could not read MESH file, file is too small to contain signature.");
-    }
-
-    // Read signature
-    fin.read(buffer, 4 * sizeof(char));
-
-    if(std::string(buffer, 4) != "MESH")
-    {
-      throw std::runtime_error("Could not read MESH file, signature invalid.");
-    }
-    // Read how many attributes we have. 
-    uint32_t vertexCount;
-    fin.read((char*)&vertexCount,sizeof(uint32_t));
-    fileSize -= vertexCount * sizeof(Vec3);
-    if(fileSize < 0)
-    {
-      throw std::runtime_error("Could not read MESH file, file is too small to contain vertex data");
-    }
-    if(vertexCount == 0)
-      throw std::runtime_error("VertexCount is 0");
-
-    // Read how many attributes we have. 
-    uint32_t indexCount;
-    fin.read((char*)&indexCount,sizeof(uint32_t));
-    fileSize -= indexCount * sizeof(uint32_t);
-    if(fileSize < 0)
-    {
-      throw std::runtime_error("Could not read MESH file, file is too small to contain vertex data");
-    }
-    if(indexCount == 0)
-      throw std::runtime_error("IndexCount is 0");
-
-    // Read how many attributes we have. 
-    size_t attributeCount;
-    fin.read((char*)&attributeCount,sizeof(size_t));
-
-    // Check if the file is big enough to contain attribute parameters.
-    int attribLength = (sizeof(uint32_t) * 4 + sizeof(bool));
-    int attribsLength = attributeCount * attribLength; 
-
-    // Remove attribLength from fileSize to easier check sizes later.
-    fileSize -= attribsLength;
-
-    if(fileSize < 0)
-    {
-      throw std::runtime_error("Could not read MESH file, file is too small to contain attribute parameters");
-    }
-
-    if(attribLength > 1024)
-    {
-      throw std::runtime_error("Could not read MESH file, too many attributes.");
-    }
-    fin.read(buffer,attribsLength);
-
-    const char* pointer = buffer;
-    for(size_t i = 0;i<attributeCount;i++)
-    {
-      // Read uints
-      uint32_t location = ((uint*)pointer)[0];
-      uint32_t vertexValueSize = ((uint*)pointer)[1];
-      uint32_t memoryValueSize = ((uint*)pointer)[2];
-      uint32_t glType = ((uint*)pointer)[3];
-
-      // Move pointer
-      pointer += sizeof(uint32_t)*4;
-
-      // Read bool
-      bool normalized = ((bool*)buffer)[0];
-
-      // Move pointer
-      pointer += sizeof(bool);
-
-      fileSize -= memoryValueSize * vertexCount;
-      if(fileSize < 0)
-      {
-        throw std::runtime_error("Could not read MESH file, file is too small to contain attribute data");
-      }
-    }
-
-    // Read vertices
-    Vec3* vertices = new Vec3[vertexCount];
-    fin.read((char*)vertices,vertexCount*sizeof(Vec3));
-
-    // Read indices 
-    uint32_t* indices = new uint32_t[indexCount];
-    fin.read((char*)indices,indexCount*sizeof(uint32_t));
-
-    return {vertices, vertexCount, indices, indexCount};
+    normals.resize(vertices.size());
+    texCoords.resize(vertices.size());
   }
 
-}
+  MeshData(const std::vector<Greet::Vec3>& vertices, const std::vector<uint32_t>& indices, const std::vector<Greet::Vec3>& normals)
+    : vertices{vertices}, indices{indices}, normals{normals}
+  {
+    texCoords.resize(vertices.size());
+  }
+
+  MeshData(const std::vector<Greet::Vec3>& vertices, const std::vector<uint32_t>& indices, const std::vector<Greet::Vec2>& texCoords)
+    : vertices{vertices}, indices{indices}, texCoords{texCoords}
+  {
+    normals.resize(vertices.size());
+  }
+
+  MeshData(const std::vector<Greet::Vec3>& vertices, const std::vector<uint32_t>& indices, const std::vector<Greet::Vec3>& normals, const std::vector<Greet::Vec2>& texCoords)
+    : vertices{vertices}, indices{indices}, normals{normals}, texCoords{texCoords}
+  {}
+};
+
+class Mesh
+{
+  private:
+    std::vector<std::shared_ptr<Buffer>> buffers;
+
+    std::shared_ptr<Buffer> indexBuffer;
+    uint32_t indices;
+
+  public:
+    Mesh(const MeshData& data)
+      : indices{static_cast<uint32_t>(data.indices.size())}
+    {
+      buffers.push_back(std::make_shared<Buffer>((void*)data.vertices.data(), data.vertices.size() * sizeof(Greet::Vec3), BufferType::VERTEX, BufferUpdateType::STATIC));
+
+      buffers.push_back(std::make_shared<Buffer>((void*)data.normals.data(), data.normals.size() * sizeof(Greet::Vec3), BufferType::VERTEX, BufferUpdateType::STATIC));
+
+      buffers.push_back(std::make_shared<Buffer>((void*)data.texCoords.data(), data.texCoords.size() * sizeof(Greet::Vec2), BufferType::VERTEX, BufferUpdateType::STATIC));
+
+      indexBuffer = std::make_shared<Buffer>((void*)data.indices.data(), data.indices.size() * sizeof(uint32_t), BufferType::INDEX, BufferUpdateType::STATIC);
+    }
+
+    void Render(VkCommandBuffer cmdBuffer)
+    {
+      VkDeviceSize offsets[] = {0, 0, 0};
+
+      VkBuffer vkBuffers[] = {buffers[0]->GetBuffer(), buffers[1]->GetBuffer(), buffers[2]->GetBuffer()};
+
+      vkCmdBindVertexBuffers(cmdBuffer, 0, static_cast<uint32_t>(buffers.size()), vkBuffers, offsets);
+      vkCmdBindIndexBuffer(cmdBuffer, indexBuffer->GetBuffer(), 0,VK_INDEX_TYPE_UINT32);
+
+      vkCmdDrawIndexed(cmdBuffer, indices, 1, 0, 0, 0);
+    }
+};

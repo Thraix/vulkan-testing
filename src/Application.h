@@ -2,8 +2,9 @@
 
 #include "VulkanHandle.h"
 #include "VulkanContext.h"
+#include "OBJLoader.h"
 #include "Texture.h"
-#include "Buffer.h"
+#include "Mesh.h"
 #include <iostream>
 #include <vector>
 #include <set>
@@ -27,14 +28,22 @@ struct Vertex
   Greet::Vec3 color;
   Greet::Vec2 texCoord;
 
-  static VkVertexInputBindingDescription GetBindingDescription()
+  static std::array<VkVertexInputBindingDescription, 3> GetBindingDescription()
   {
-    VkVertexInputBindingDescription bindingDescription = {};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    std::array<VkVertexInputBindingDescription, 3> bindingDescriptions = {};
+    bindingDescriptions[0].binding = 0;
+    bindingDescriptions[0].stride = sizeof(Greet::Vec3);
+    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    return bindingDescription;
+    bindingDescriptions[1].binding = 1;
+    bindingDescriptions[1].stride = sizeof(Greet::Vec3);
+    bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    bindingDescriptions[2].binding = 2;
+    bindingDescriptions[2].stride = sizeof(Greet::Vec2);
+    bindingDescriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescriptions;
 
   };
 
@@ -44,17 +53,17 @@ struct Vertex
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(Vertex, position);
+    attributeDescriptions[0].offset = 0;
 
-    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].binding = 1;
     attributeDescriptions[1].location = 1;
     attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Vertex, color);
+    attributeDescriptions[1].offset = 0;
 
-    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].binding = 2;
     attributeDescriptions[2].location = 2;
     attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+    attributeDescriptions[2].offset = 0;
 
     return attributeDescriptions;
   };
@@ -92,8 +101,7 @@ class Application
     VkPipeline graphicsPipeline;
 
     std::shared_ptr<Texture> texture;
-    std::shared_ptr<Buffer> vertexBuffer;
-    std::shared_ptr<Buffer> indexBuffer;
+    std::shared_ptr<Mesh> mesh;
 
     std::vector<std::shared_ptr<Buffer>> uniformBuffers;
 
@@ -127,8 +135,7 @@ class Application
       CreateDescriptorSetLayout();
       CreateGraphicsPipeline();
       CreateTexture();
-      CreateVertexBuffer();
-      CreateIndexBuffer();
+      CreateMesh();
       CreateUniformBuffers();
       CreateDescriptorPool();
       CreateDescriptorSets();
@@ -201,13 +208,13 @@ class Application
 
       VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-      auto bindingDescription = Vertex::GetBindingDescription();
+      auto bindingDescriptions = Vertex::GetBindingDescription();
       auto attributeDescriptions = Vertex::GetAttributeDescriptions();
       VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
       vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertexInputInfo.vertexBindingDescriptionCount = 1;
+      vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
       vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-      vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+      vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
       vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
       VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
@@ -326,17 +333,12 @@ class Application
 
     void CreateTexture()
     {
-      texture = std::make_shared<Texture>("res/textures/test.png");
+      texture = std::make_shared<Texture>("res/textures/viking_room.png");
     }
 
-    void CreateVertexBuffer()
+    void CreateMesh()
     {
-      vertexBuffer = std::make_shared<Buffer>((void*)vertices.data(), vertices.size() * sizeof(Vertex), BufferType::VERTEX, BufferUpdateType::STATIC);
-    }
-
-    void CreateIndexBuffer()
-    {
-      indexBuffer = std::make_shared<Buffer>((void*)indices.data(), indices.size() * sizeof(indices[0]), BufferType::INDEX, BufferUpdateType::STATIC);
+      mesh = std::make_shared<Mesh>(OBJLoader::LoadObj("res/objs/viking_room.obj"));
     }
 
     void CreateUniformBuffers()
@@ -445,7 +447,7 @@ class Application
         renderPassInfo.renderArea.extent = VulkanContext::GetSwapChainExtent();
 
         std::array<VkClearValue,2> clearColors = {};
-        clearColors[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        clearColors[0] = { 0.2f, 0.2f, 0.2f, 1.0f };
         clearColors[1] = { 1.0f, 0 };
 
         renderPassInfo.clearValueCount = clearColors.size();
@@ -454,18 +456,12 @@ class Application
         vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         {
+          // Material
           vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-          VkBuffer vertexBuffers[] = {vertexBuffer->GetBuffer()};
-          VkDeviceSize offsets[] = {0};
-
-          vkCmdBindVertexBuffers(commandBuffers[i], 0, 1,vertexBuffers, offsets);
-          vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer->GetBuffer(), 0,VK_INDEX_TYPE_UINT16);
-
           vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-          vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
+          // Mesh
+          mesh->Render(commandBuffers[i]);
         }
         vkCmdEndRenderPass(commandBuffers[i]);
         if(vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
@@ -603,8 +599,7 @@ class Application
         uniformBuffers[i].reset();
       }
 
-      vertexBuffer.reset();
-      indexBuffer.reset();
+      mesh.reset();
 
       for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
       {
