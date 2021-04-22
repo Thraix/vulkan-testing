@@ -1,5 +1,8 @@
 #pragma once
 
+#include <iostream>
+#include <iomanip>
+#include <vector>
 #include <execinfo.h>
 #include <link.h>
 #include <stdlib.h>
@@ -40,5 +43,27 @@ struct Utils
   {
     PrintCallStack();
     abort();
+  }
+
+  static void LogBytes(const std::vector<char>& data)
+  {
+    std::cout << std::hex;
+    for(size_t i = 0; i < data.size(); i++)
+    {
+      std::cout << std::setw(2) << std::setfill('0') << (int32_t)(uint8_t)(data[i]);
+      if(i % 16 == 15)
+      {
+        std::cout << " ";
+        for(size_t j = i - 15; j < i+1; j++)
+        {
+          if((data[j] >= 'a' && data[j] <= 'z') || (data[j] >= 'A' && data[j] <= 'Z') || (data[j] >= '0' && data[j] <= '9') || data[j] == '_')
+            std::cout << data[j];
+          else
+            std::cout << '.';
+        }
+        std::cout << std::endl;
+      }
+    }
+    std::cout << std::dec;
   }
 };

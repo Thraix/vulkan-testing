@@ -9,6 +9,11 @@
     <library>freeimage</library>
     <library>freetype</library>
     <library>dl</library>
+    <library>glslang</library>
+    <library>SPIRV</library>
+    <library>SPIRV-Tools</library>
+    <library>SPIRV-Tools-opt</library>
+    <library>shaderc_combined</library>
     <outputdir>bin/</outputdir>
     <outputname>vulkan.x86_64</outputname>
     <outputtype>executable</outputtype>
